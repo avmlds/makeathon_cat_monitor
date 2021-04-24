@@ -38,3 +38,9 @@ VALUES (
 '%(entities_length)s',
 '%(entities_type)s'
 );'''
+
+
+CHECK_IS_ANSWERED = "SELECT message_chat_id, message_id, is_answered FROM telegram_updates " \
+                    "WHERE message_id = {message_id} AND message_chat_id = {chat_id};"
+UPDATE_ANSWERED = "UPDATE telegram_updates SET is_answered = 'True' WHERE message_id = {message_id} " \
+                  "AND message_chat_id = {chat_id};"

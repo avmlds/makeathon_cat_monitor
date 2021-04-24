@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 
 
 class TelegramMessageEntities(BaseModel):
@@ -27,23 +27,47 @@ class TelegramMessageFrom(BaseModel):
 class TelegramMessageLocation(BaseModel):
     latitude: float
     longitude: float
+    live_period: Optional[float] = None
+    heading: Optional[float] = None
+    horizontal_accuracy: Optional[float] = None
+
+
+class TelegramPhoto(BaseModel):
+    file_id: str
+    file_unique_id: str
+    file_size: int
+    width: int
+    height: int
 
 
 class TelegramMessage(BaseModel):
     message_id: int
     from_: TelegramMessageFrom = Field(alias='from')
     chat: TelegramMessageChat
+    photo: Optional[List[TelegramPhoto]] = None
     date: datetime
     location: Optional[TelegramMessageLocation] = None
     text: Optional[str] = None
     entities: Optional[List[TelegramMessageEntities]] = None
 
 
-class TelegramResult(BaseModel):
+class TelegramEditedMessage(BaseModel):
+    message_id: int
+    from_: TelegramMessageFrom = Field(alias='from')
+    chat: TelegramMessageChat
+    photo: Optional[List[TelegramPhoto]] = None
+    date: datetime
+    location: Optional[TelegramMessageLocation] = None
+    text: Optional[str] = None
+    entities: Optional[List[TelegramMessageEntities]] = None
+
+
+class TelegramMessageResult(BaseModel):
     update_id: int
-    message: TelegramMessage
+    message: Optional[TelegramMessage] = None
+    edited_message: Optional[TelegramEditedMessage] = None
 
 
 class TelegramUpdateResponse(BaseModel):
     ok: bool
-    result: List[TelegramResult]
+    result: List[TelegramMessageResult]
