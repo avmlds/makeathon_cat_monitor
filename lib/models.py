@@ -40,6 +40,18 @@ class TelegramPhoto(BaseModel):
     height: int
 
 
+class TelegramPhotoPathResponseResult(BaseModel):
+    file_id: str
+    file_unique_id: str
+    file_size: int
+    file_path: str
+
+
+class TelegramPhotoPathResponse(BaseModel):
+    ok: bool
+    result: Optional[TelegramPhotoPathResponseResult] = None
+
+
 class TelegramMessage(BaseModel):
     message_id: int
     from_: TelegramMessageFrom = Field(alias='from')

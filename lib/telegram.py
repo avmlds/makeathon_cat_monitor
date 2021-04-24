@@ -1,12 +1,16 @@
 import asyncio
+import aiofiles
 import aiohttp
 import aiosqlite
+from aiofiles import os as aioos
+import os
 from lib.secret import TELEGRAM_TOKEN
-from lib.models import TelegramUpdateResponse, TelegramMessageResult
+from lib.models import TelegramUpdateResponse, TelegramPhotoPathResponse
 from lib.sql_queries import INSERT_UPDATES, UPDATE_ANSWERED, CHECK_IS_ANSWERED
 from messages.message_texts import START_MESSAGE_TEXT
-from datetime import datetime
+from datetime import datetime, timedelta
 from warnings import warn
+import concurrent.futures
 
 
 class TelegramBot:
@@ -16,6 +20,7 @@ class TelegramBot:
         self.send_message_method = 'sendMessage?chat_id={chat_id}&text={message_text}&parse_mode=HTML'
         self.send_message_command = self.root.format(method=self.send_message_method)
         self.get_file_step_1 = self.root.format(method='getFile?file_id={file_id}')
+        self.get_file_step_2 = f'https://api.telegram.org/file/bot{token}/' + '{file_path}'
         self.query = []
         self.updates = []
 
@@ -26,25 +31,26 @@ class TelegramBot:
                 return await response.json()
 
     async def update_polls(self):
+
         while True:
-            await asyncio.sleep(5)
+            # await asyncio.sleep(3)
             response = await TelegramBot.async_request(session_kwargs={},
                                                        request_kwargs={'method': 'POST',
                                                                        'url': self.update_polls_command})
             parsed_response = TelegramUpdateResponse.parse_obj(response)
             if not parsed_response.ok:
                 raise Exception('Status is not OK')
-
             for data in parsed_response.result:
-                if await TelegramBot.is_update_resolved(data.update_id):
+                if await self.is_update_resolved(data.update_id):
                     continue
                 await TelegramBot.track_update(update_id=data.update_id)
-
+                correct_chat_id = {'chat_id': None}
                 if data.message is not None:
                     update_id = data.update_id
                     telegram_id = data.message.from_.id
                     message_id = data.message.message_id
                     chat_id = data.message.chat.id
+                    correct_chat_id['chat_id'] = chat_id
                     if data.message.location is not None and data.message.location.live_period is not None:
                         # start_tracking
                         await self.start_tracking_user(data=data)
@@ -57,6 +63,7 @@ class TelegramBot:
                     telegram_id = data.edited_message.from_.id
                     update_id = data.update_id
                     chat_id = data.edited_message.chat.id
+                    correct_chat_id['chat_id'] = chat_id
                     message_id = data.edited_message.message_id
 
                     if data.edited_message.location is not None \
@@ -68,7 +75,31 @@ class TelegramBot:
                 if not checked_user[0]:
                     await TelegramBot.resolve_update(update_id=data.update_id)
                     continue
-                await TelegramBot.resolve_update(update_id=data.update_id)
+
+                # FIXME: Tracking validation
+                # If timestamp is older than geotracking stamp + delta(life_value) (seconds)
+                # send message - create new
+                if data.message is not None and data.message.photo is not None:
+                    current_message = data.message
+                    pet = await self.get_pet_params(current_message)
+                elif data.edited_message is not None and data.edited_message.photo is not None:
+                    current_message = data.edited_message
+                    pet = await self.get_pet_params(current_message)
+                else:
+                    pet = None
+                    print('no photo in file')
+                if pet is None:
+                    #FIXME: Correct behaviour when geolocation is sent and is not sent
+
+                    message = 'Сессия истекла, отправьте новую геопозицию'
+                    await self.send_message(correct_chat_id['chat_id'], text=message)
+                # file_id: str
+                # file_unique_id: str
+                # file_size: int
+                # width: int
+                # height: int
+
+                await self.resolve_update(update_id=data.update_id)
                 print(data)
 
     async def check_user_in_db(self, telegram_id, chat_id):
@@ -78,7 +109,6 @@ class TelegramBot:
             await db.commit()
             if len(result) == 0:
                 await self.send_message(chat_id=chat_id, text=START_MESSAGE_TEXT)
-
                 return False, 0, 0
             elif len(result) == 1:
                 # Bool, id (user), is_active (user)
@@ -90,6 +120,7 @@ class TelegramBot:
         async with aiosqlite.connect('../db/animal_monitor.db') as db:
             res = await db.execute(f'INSERT INTO user VALUES( id, is_active FROM user '
                                    f'WHERE telegram_id = {telegram_id};')
+            await db.commit()
 
     @staticmethod
     async def start_tracking_user(data):
@@ -112,7 +143,7 @@ class TelegramBot:
                      f"system_timestamp, date, live_period, is_active) " \
                      f"VALUES('{user_id}', '{username}', '{first_name}', '{system_timestamp}'," \
                      f"'{iso_timestamp}', '{live_period}'," \
-                     f" '{True}');"
+                     f" '{1}');"
         async with aiosqlite.connect('../db/animal_monitor.db') as db:
             query_id_ = await db.execute(user_query)
             await db.commit()
@@ -166,13 +197,13 @@ class TelegramBot:
         url = self.send_message_command.format(chat_id=chat_id, message_text=text)
         await self.async_request(session_kwargs={}, request_kwargs={'method': 'POST', 'url': url})
 
-    @staticmethod
-    async def resolve_update(update_id):
+    async def resolve_update(self, update_id):
+        query = f"UPDATE proceeded_messages SET is_resolved = '{1}' " \
+                f"WHERE update_id = '{update_id}';"
         async with aiosqlite.connect('../db/animal_monitor.db') as db:
-            query = f"UPDATE proceeded_messages SET is_resolved = '{True}' " \
-                    f"WHERE update_id = '{update_id}';"
             await db.execute(query)
             await db.commit()
+        self.update_polls_command = self.root.format(method='getUpdates') + f'?offset={update_id + 1}'
 
     @staticmethod
     async def track_update(update_id):
@@ -181,8 +212,7 @@ class TelegramBot:
             await db.execute(query)
             await db.commit()
 
-    @staticmethod
-    async def is_update_resolved(update_id):
+    async def is_update_resolved(self, update_id):
         async with aiosqlite.connect('../db/animal_monitor.db') as db:
             query = f"SELECT is_resolved FROM proceeded_messages WHERE update_id = '{update_id}';"
             query_result = await db.execute(query)
@@ -190,10 +220,73 @@ class TelegramBot:
             is_resolved = await query_result.fetchall()
             if len(is_resolved) == 0:
                 return False
-            if len(is_resolved) == 1 and is_resolved[0][0] == 'True':
+            if len(is_resolved) == 1 and is_resolved[0][0] == 1:
+                self.update_polls_command = self.root.format(method='getUpdates') + f'?offset={update_id + 1}'
                 return True
             else:
                 return False
+
+    @staticmethod
+    async def get_user_tracking_id(user_id):
+        last_tracking_state = f'SELECT user_tracking.id, user_id, message_id, user_tracking.date, ' \
+                              f'user_tracking.live_period FROM user_tracking ' \
+                              f'LEFT JOIN user ' \
+                              f'ON user_tracking.user_id = user.id ' \
+                              f'WHERE user.telegram_id = {user_id} ORDER BY user_tracking.id DESC LIMIT 1;'
+        async with aiosqlite.connect('../db/animal_monitor.db') as db:
+            result = await db.execute(last_tracking_state)
+            data = await result.fetchall()
+            await db.commit()
+        if len(data) == 1:
+            return data[0]
+        else:
+            print('set geoсode')
+
+    async def get_pet_params(self, current_message):
+        tracking_id, user_id, message_id, \
+            date, live_period = await TelegramBot.get_user_tracking_id(current_message.from_.id)
+        correct_data = datetime.fromisoformat(date) + timedelta(live_period)
+        if correct_data <= datetime.now(correct_data.tzinfo):
+            return None
+        photo = {'size': -1, 'file_id': ''}
+        for photo_file in current_message.photo:
+            if photo_file.file_size > photo['size']:
+                photo['size'] = photo_file.file_size
+                photo['file_id'] = photo_file.file_id
+        url = self.get_file_step_1.format(file_id=photo['file_id'])
+        inner_path = await TelegramBot.get_photo_url(url, self.get_file_step_2)
+        return inner_path
+
+    @staticmethod
+    async def async_content_request(session_kwargs, request_kwargs):
+        async with aiohttp.ClientSession(**session_kwargs) as session:
+            async with session.request(**request_kwargs) as response:
+                return await response.read()
+
+    @staticmethod
+    async def get_photo_url(url_with_file_id, second_step_path):
+        response = await TelegramBot.async_request(session_kwargs={},
+                                                   request_kwargs={'method': 'POST',
+                                                                   'url': url_with_file_id})
+        valid_response = TelegramPhotoPathResponse.parse_obj(response)
+        if not valid_response.ok:
+            raise Exception('Check response status for image')
+        timestamp = datetime.now().date().isoformat()
+        data_path = f"../data/{timestamp}/{valid_response.result.file_path.replace('/', '_')}"
+        loop = asyncio.get_running_loop()
+
+        with concurrent.futures.ProcessPoolExecutor() as pool:
+            try:
+                await loop.run_in_executor(pool, os.listdir, f'../data/{timestamp}/')
+            except FileNotFoundError:
+                await loop.run_in_executor(pool, os.mkdir, f'../data/{timestamp}/')
+        last_path = second_step_path.format(file_path=valid_response.result.file_path)
+        async with aiofiles.open(data_path, 'wb') as f:
+            content = await TelegramBot.async_content_request(session_kwargs={},
+                                                              request_kwargs={'method': 'GET',
+                                                                              'url': last_path})
+            await f.write(content)
+        return data_path
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@
 
 > DB INIT
 ```
-import sqlite3
+_import sqlite3
 
 connection = sqlite3.connect('db/animal_monitor.db')
 cursor = connection.cursor()
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS telegram_updates (
     update_id INTEGER NOT NULL,
     message_id INTEGER NOT NULL,
     message_from_id INTEGER NOT NULL, 
-    message_from_is_bot BOOL NOT NULL, 
+    message_from_is_bot INTEGER NOT NULL, 
     message_from_first_name VARCHAR NOT NULL, 
     message_from_username VARCHAR NOT NULL, 
     message_from_language_code VARCHAR,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS telegram_updates (
     entities_offset INTEGER, 
     entities_length INTEGER, 
     entities_type VARCHAR,
-    is_answered BOOL DEFAULT FALSE NOT NULL);''')
+    is_answered INTEGER DEFAULT 0 NOT NULL);''')
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS user (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS user (
     system_timestamp TEXT NOT NULL,
     date TEXT NOT NULL,
     live_period INTEGER NOT NULL,
-    is_active BOOL NOT NULL DEFAULT FALSE);''')
+    is_active INTEGER NOT NULL DEFAULT 0);''')
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS user_tracking (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -64,20 +64,20 @@ CREATE TABLE IF NOT EXISTS pet_tracking (
     color VARCHAR NOT NULL,
     age INTEGER NOT NULL,
     photo_path VARCHAR NOT NULL,
-    is_wild BOOL NOT NULL,
-    is_ill BOOL NOT NULL,
-    in_danger BOOL NOT NULL);'''
+    is_wild INTEGER NOT NULL,
+    is_ill INTEGER NOT NULL,
+    in_danger INTEGER NOT NULL);'''
                )
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS proceeded_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     update_id INTEGER UNIQUE NOT NULL,
-    is_resolved BOOL NOT NULL DEFAULT TRUE
+    is_resolved INTEGER NOT NULL DEFAULT 1
 );'''
                )
 
 connection.commit()
-connection.close()
+connection.close()_
 ```
 
 
