@@ -41,13 +41,18 @@ class TelegramBot:
                     if data.message.location is not None and data.message.location.live_period is not None:
                         # start_tracking
                         await self.start_tracking_user(data=data)
+
                 else:
                     telegram_id = data.edited_message.from_.id
                     chat_id = data.edited_message.from_.id
+                    if data.edited_message.location is not None \
+                            and data.edited_message.location.live_period is not None \
+                            and data.edited_message.location.heading is not None:
+                        await self.continue_tracking_user(data=data)
+
                 checked_user = await self.check_user_in_db(telegram_id=telegram_id, chat_id=chat_id)
                 if not checked_user[0]:
                     continue
-                await self.continue_tracking_user(data)
 
             if not response['ok']:
                 return {'Messages': 'No new'}
@@ -159,17 +164,17 @@ class TelegramBot:
             u = 38 / 1
 
     async def continue_tracking_user(self, data):
-        user_id = data.message.from_.id
-        username = data.message.from_.username
-        first_name = data.message.from_.first_name
-        message_id = data.message.message_id
+        user_id = data.edited_message.from_.id
+        username = data.edited_message.from_.username
+        first_name = data.edited_message.from_.first_name
+        message_id = data.edited_message.message_id
         # telegram message timestamp
-        iso_timestamp = datetime.fromtimestamp(data.message.date).isoformat()
-        live_period = data.message.location.live_period
-        latitude = data.message.location.latitude
-        longitude = data.message.location.longitude
-        heading = data.message.location.heading
-        horizontal_accuracy = data.message.location.horizontal_accuracy
+        iso_timestamp = data.edited_message.date.isoformat()
+        live_period = data.edited_message.location.live_period
+        latitude = data.edited_message.location.latitude
+        longitude = data.edited_message.location.longitude
+        heading = data.edited_message.location.heading
+        horizontal_accuracy = data.edited_message.location.horizontal_accuracy
         async with aiosqlite.connect('../db/animal_monitor.db') as db:
             query = f'SELECT id FROM user WHERE telegram_id = {user_id}'
             user_id_data = await db.execute(query)
@@ -186,9 +191,6 @@ class TelegramBot:
                     await db.commit()
             else:
                 raise Exception('User is not in DB')
-
-
-
 
     async def message_handler(self, parsed_response_message):
         result_object = TelegramResult.parse_obj(result)
