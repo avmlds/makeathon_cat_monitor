@@ -22,6 +22,8 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS telegram_updates (
     message_chat_username VARCHAR NOT NULL,
     message_chat_type VARCHAR NOT NULL,
     date TEXT NOT NULL,
+    latitude FLOAT,
+    longitude FLOAT,
     text TEXT NOT NULL,
     entities_offset INTEGER, 
     entities_length INTEGER, 

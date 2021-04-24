@@ -41,8 +41,7 @@ class TelegramBot:
                         'message_chat_first_name': message_response.message.chat.first_name,
                         'message_chat_username': message_response.message.chat.username,
                         'message_chat_type': message_response.message.chat.type,
-                        'date': message_response.message.date.isoformat(),
-                        'text': message_response.message.text}
+                        'date': message_response.message.date.isoformat()}
 
                 if message_response.message.entities is not None:
                     data.update({'entities_offset': message_response.message.entities[0].offset,
@@ -50,6 +49,17 @@ class TelegramBot:
                                  'entities_type': message_response.message.entities[0].type})
                 else:
                     data.update({'entities_offset': None, 'entities_length': None, 'entities_type': None})
+
+                if message_response.message.location is not None:
+                    data.update({'longitude': message_response.message.location.longitude,
+                                 'latitude': message_response.message.location.latitude})
+                else:
+                    data.update({'longitude': None, 'latitude': None})
+
+                if message_response.message.text is not None:
+                    data.update({'text': message_response.message.text})
+                else:
+                    data.update({'text': None})
 
                 async with aiosqlite.connect('../db/animal_monitor.db') as db:
                     await db.execute(INSERT_UPDATES % data)

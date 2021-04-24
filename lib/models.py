@@ -24,12 +24,18 @@ class TelegramMessageFrom(BaseModel):
     language_code: Optional[str] = None
 
 
+class TelegramMessageLocation(BaseModel):
+    latitude: float
+    longitude: float
+
+
 class TelegramMessage(BaseModel):
     message_id: int
     from_: TelegramMessageFrom = Field(alias='from')
     chat: TelegramMessageChat
     date: datetime
-    text: str
+    location: Optional[TelegramMessageLocation] = None
+    text: Optional[str] = None
     entities: Optional[List[TelegramMessageEntities]] = None
 
 
