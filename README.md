@@ -19,7 +19,10 @@ User states
 
 ```
 
->DB INIT 
+>DB INIT
+
+![image info](docs/makeathon.svg) 
+
 ```
 
 import sqlite3
