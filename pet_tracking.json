@@ -1,0 +1,104 @@
+{
+  "main": [
+    {
+      "id": "1",
+      "user_id": "1",
+      "tracking_id": "",
+      "system_timestamp": "",
+      "pet_type": "dog",
+      "sex": "male",
+      "color": "black",
+      "age": "5",
+      "photo_path": "",
+      "is_wild": 1,
+      "is_ill": 1,
+      "in_danger": 1
+    },
+    {
+      "id": "2",
+      "user_id": "2",
+      "tracking_id": "",
+      "system_timestamp": "",
+      "pet_type": "dog",
+      "sex": "male",
+      "color": "black",
+      "age": "5",
+      "photo_path": "",
+      "is_wild": 1,
+      "is_ill": 1,
+      "in_danger": 0
+    },
+    {
+      "id": "3",
+      "user_id": "3",
+      "tracking_id": "",
+      "system_timestamp": "",
+      "pet_type": "dog",
+      "sex": "female",
+      "color": "gray",
+      "age": "10",
+      "photo_path": "",
+      "is_wild": 1,
+      "is_ill": 1,
+      "in_danger": 0
+    },
+    {
+      "id": "4",
+      "user_id": "4",
+      "tracking_id": "",
+      "system_timestamp": "",
+      "pet_type": "cat",
+      "sex": "female",
+      "color": "white",
+      "age": "1",
+      "photo_path": "",
+      "is_wild": 0,
+      "is_ill": 0,
+      "in_danger": 1
+    }
+  ],
+  "columns": [
+    {
+      "field": "user_id",
+      "label": "ID Пользователя",
+      "width": 40,
+      "numeric": true,
+      "centered": true
+    },
+    {
+      "field": "pet_type",
+      "label": "Вид",
+      "centered": true
+    },
+    {
+      "field": "sex",
+      "label": "Пол",
+      "centered": true
+    },
+    {
+      "field": "color",
+      "label": "Окрас",
+      "centered": true
+    },
+    {
+      "field": "age",
+      "label": "Возраст",
+      "centered": true
+    },
+    {
+      "field": "is_wild",
+      "label": "Дикое",
+      "centered": true
+    },
+    {
+      "field": "is_ill",
+      "label": "Больное",
+      "centered": true
+    },
+    {
+      "field": "in_danger",
+      "label": "Опасность",
+      "centered": true
+    }
+  ]
+}
