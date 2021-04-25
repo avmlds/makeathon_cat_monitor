@@ -1,8 +1,27 @@
-# Meakathon_cat_monitor
+# Makeathon pet monitor
 > Animal monitoring web-app for counting cat population
+> Init DB in /db/ folder, specify TELEGRAM_TOKEN' in lib/secret.py 
 
-> DB INIT
+
 ```
+User states
+
+#        {"0": user in db, geo is set,
+#         "1": user in db, photo is sent,
+#         "2": user in db, pet_type checked,
+#         "3": user in db, pet_color checked,
+#         "4": user in db, pet_sex checked,
+#         "5": user in db, pet_age checked,
+#         "6": user in db, is_wild checked,
+#         "7": user in db, is_ill checked,
+#         "8": user in db, in_danger checked,
+#         "9": user in db, session ended
+
+```
+
+>DB INIT 
+```
+
 import sqlite3
 
 connection = sqlite3.connect('db/animal_monitor.db')
@@ -72,17 +91,6 @@ CREATE TABLE IF NOT EXISTS proceeded_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     update_id INTEGER UNIQUE NOT NULL,
     is_resolved INTEGER NOT NULL DEFAULT 1);''')
-# STATES {"0": user in db, geo is set,
-#         "1": user in db, photo is sent,
-#         "2": user in db, pet_type checked,
-#         "3": user in db, pet_color checked,
-#         "4": user in db, pet_sex checked,
-#         "5": user in db, pet_age checked,
-#         "6": user in db, is_wild checked,
-#         "7": user in db, is_ill checked,
-#         "8": user in db, in_danger checked,
-#         "9": user in db, session ended
-
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS user_state (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
