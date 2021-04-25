@@ -2,22 +2,22 @@
 
 ## Project preview
 ```
-![Карта_1](screenshots/map_1.png)
+![img](screenshots/map_1.png)
 ```
 ```
-![Карта](screenshots/map.png)
+![img](screenshots/map.png)
 ```
 ```
-![Пользователи(список)](screenshots/users.png)
+![img](screenshots/users.png)
 ```
 ```
-![Статистика(волонтеры)](screenshots/stat_workers.png)
+![img](screenshots/stat_workers.png)
 ```
 ```
-![Статистика(волонтеры)_2](screenshots/stat_workers_2.png)
+![img](screenshots/stat_workers_2.png)
 ```
 ```
-![Статистика(животные)](screenshots/stat_pets.png)
+![img](screenshots/stat_pets.png)
 ```
 
 
