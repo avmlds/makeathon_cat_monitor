@@ -3,7 +3,7 @@
 
 > DB INIT
 ```
-_import sqlite3
+import sqlite3
 
 connection = sqlite3.connect('db/animal_monitor.db')
 cursor = connection.cursor()
@@ -66,18 +66,37 @@ CREATE TABLE IF NOT EXISTS pet_tracking (
     photo_path VARCHAR NOT NULL,
     is_wild INTEGER NOT NULL,
     is_ill INTEGER NOT NULL,
-    in_danger INTEGER NOT NULL);'''
-               )
+    in_danger INTEGER NOT NULL);''')
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS proceeded_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     update_id INTEGER UNIQUE NOT NULL,
-    is_resolved INTEGER NOT NULL DEFAULT 1
-);'''
-               )
+    is_resolved INTEGER NOT NULL DEFAULT 1);''')
+# STATES {"0": user in db, geo is set,
+#         "1": user in db, photo is sent,
+#         "2": user in db, pet_type checked,
+#         "3": user in db, pet_color checked,
+#         "4": user in db, pet_sex checked,
+#         "5": user in db, pet_age checked,
+#         "6": user in db, is_wild checked,
+#         "7": user in db, is_ill checked,
+#         "8": user in db, in_danger checked,
+#         "9": user in db, session ended
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS user_state (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    user_id INTEGER UNIQUE REFERENCES user(id) ON UPDATE CASCADE,
+    state INTEGER NOT NULL DEFAULT 0);''')
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS trusted_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    telegram_id INTEGER UNIQUE REFERENCES user(telegram_id) ON UPDATE CASCADE NOT NULL,
+    telegram_username VARCHAR REFERENCES user(telegram_username) ON UPDATE CASCADE NOT NULL,
+    telegram_first_name VARCHAR REFERENCES user(first_name) ON UPDATE CASCADE NOT NULL);''')
 
 connection.commit()
-connection.close()_
+connection.close()
 ```
 
 

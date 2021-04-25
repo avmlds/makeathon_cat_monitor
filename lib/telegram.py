@@ -11,6 +11,7 @@ from messages.message_texts import START_MESSAGE_TEXT
 from datetime import datetime, timedelta
 from warnings import warn
 import concurrent.futures
+from lib.state_resolvers import *
 
 
 class TelegramBot:
@@ -31,7 +32,6 @@ class TelegramBot:
                 return await response.json()
 
     async def update_polls(self):
-
         while True:
             # await asyncio.sleep(3)
             response = await TelegramBot.async_request(session_kwargs={},
@@ -41,58 +41,52 @@ class TelegramBot:
             if not parsed_response.ok:
                 raise Exception('Status is not OK')
             for data in parsed_response.result:
-                if await self.is_update_resolved(data.update_id):
+                if await self.is_update_resolved(update_id=data.update_id):
                     continue
                 await TelegramBot.track_update(update_id=data.update_id)
-                correct_chat_id = {'chat_id': None}
+
+                correct_message = data.message if data.message is not None else data.edited_message
+                telegram_id = correct_message.from_.id
+                update_id = data.update_id
+                chat_id = correct_message.chat.id
+
+                # im checking this first cause average users will send location first
                 if data.message is not None:
-                    update_id = data.update_id
-                    telegram_id = data.message.from_.id
-                    message_id = data.message.message_id
-                    chat_id = data.message.chat.id
-                    correct_chat_id['chat_id'] = chat_id
-                    if data.message.location is not None and data.message.location.live_period is not None:
+                    if correct_message.location is not None and correct_message.location.live_period is not None:
                         # start_tracking
                         await self.start_tracking_user(data=data)
-
-                    elif data.message.location is not None and data.message.location.live_period is None:
+                    elif correct_message.location is not None and correct_message.location.live_period is None:
                         await self.send_message(chat_id=chat_id, text='Вы должны отправить отслеживание ' \
                                                                       'геопозиции, а не одиночную геопозицию')
-
                 else:
-                    telegram_id = data.edited_message.from_.id
-                    update_id = data.update_id
-                    chat_id = data.edited_message.chat.id
-                    correct_chat_id['chat_id'] = chat_id
-                    message_id = data.edited_message.message_id
-
-                    if data.edited_message.location is not None \
-                            and data.edited_message.location.live_period is not None \
-                            and data.edited_message.location.heading is not None:
+                    if correct_message.location is not None \
+                            and correct_message.location.live_period is not None \
+                            and correct_message.location.heading is not None:
                         await TelegramBot.continue_tracking_user(data=data)
 
+                if correct_message.text != '/start':
+                    await self.send_message(chat_id=chat_id, text='')
+                else:
+                    await self.send_message(chat_id=chat_id, text=START_MESSAGE_TEXT)
+
                 checked_user = await self.check_user_in_db(telegram_id=telegram_id, chat_id=chat_id)
+
                 if not checked_user[0]:
                     await TelegramBot.resolve_update(update_id=data.update_id)
                     continue
 
-                # FIXME: Tracking validation
-                # If timestamp is older than geotracking stamp + delta(life_value) (seconds)
-                # send message - create new
                 if data.message is not None and data.message.photo is not None:
                     current_message = data.message
-                    pet = await self.get_pet_params(current_message)
+                    if not await self.resolve_pet_photo(data, current_message):
+                        continue
                 elif data.edited_message is not None and data.edited_message.photo is not None:
                     current_message = data.edited_message
-                    pet = await self.get_pet_params(current_message)
+                    if not await self.resolve_pet_photo(data, current_message):
+                        continue
                 else:
-                    pet = None
                     print('no photo in file')
-                if pet is None:
-                    #FIXME: Correct behaviour when geolocation is sent and is not sent
 
-                    message = 'Сессия истекла, отправьте новую геопозицию'
-                    await self.send_message(correct_chat_id['chat_id'], text=message)
+
                 # file_id: str
                 # file_unique_id: str
                 # file_size: int
@@ -101,6 +95,16 @@ class TelegramBot:
 
                 await self.resolve_update(update_id=data.update_id)
                 print(data)
+
+    async def resolve_pet_photo(self, data, current_message):
+        if await get_state(current_message.from_.id) == 0:
+            await self.send_message(current_message.chat.id, text='Закончите описание животного')
+            await self.resolve_update(update_id=data.update_id)
+            return False
+        pet = await self.get_pet_params(current_message, current_message.chat.id)
+        if pet is not None:
+            await update_state(current_message.from_.id, 1)
+            return True
 
     async def check_user_in_db(self, telegram_id, chat_id):
         async with aiosqlite.connect('../db/animal_monitor.db') as db:
@@ -116,7 +120,8 @@ class TelegramBot:
             else:
                 raise Exception('Unknown behaviour')
 
-    async def make_active(self, telegram_id, chat_id):
+    @staticmethod
+    async def make_active(telegram_id):
         async with aiosqlite.connect('../db/animal_monitor.db') as db:
             res = await db.execute(f'INSERT INTO user VALUES( id, is_active FROM user '
                                    f'WHERE telegram_id = {telegram_id};')
@@ -156,6 +161,7 @@ class TelegramBot:
                              f"'{iso_timestamp}', '{live_period}', '{heading}', '{horizontal_accuracy}');"
             inserted_data = await db.execute(tracking_query)
             await db.commit()
+        await insert_state(user_id)
 
     @staticmethod
     async def continue_tracking_user(data):
@@ -242,11 +248,15 @@ class TelegramBot:
         else:
             print('set geoсode')
 
-    async def get_pet_params(self, current_message):
+    async def get_pet_params(self, current_message, chat_id):
         tracking_id, user_id, message_id, \
             date, live_period = await TelegramBot.get_user_tracking_id(current_message.from_.id)
         correct_data = datetime.fromisoformat(date) + timedelta(live_period)
         if correct_data <= datetime.now(correct_data.tzinfo):
+            message = 'Сессия истекла, отправьте новую геопозицию'
+            await self.send_message(chat_id, text=message)
+            # session is ended
+            await update_state(user_id, 9)
             return None
         photo = {'size': -1, 'file_id': ''}
         for photo_file in current_message.photo:
