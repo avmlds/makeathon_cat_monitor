@@ -70,6 +70,10 @@ async def callback_query_resolver(data):
         danger = int(data.callback_query.data.replace('danger_', ''))
         await resolve_pet_danger_state(user_id, state, data, danger)
 
+    if state == 8 and 'height' in data.callback_query.data:
+        height = int(data.callback_query.data.replace('height_', ''))
+        await resolve_pet_height_state(user_id, state, data, height)
+
 
 async def resolve_pet_type_state(user_id, state, data, type_):
     pet_data = await TelegramBot.get_user_tracking_id(data.callback_query.from_.id)
@@ -150,6 +154,17 @@ async def resolve_pet_danger_state(user_id, state, data, danger):
         print('Set geolocation first!')
 
 
+async def resolve_pet_height_state(user_id, state, data, height):
+    pet_data = await TelegramBot.get_user_tracking_id(data.callback_query.from_.id)
+    if pet_data is not None:
+        tracking_id, user_id, message_id, date, live_period = pet_data[0], pet_data[1], pet_data[2], \
+                                                              pet_data[3], pet_data[4]
+        await insert_height_data_in_db(user_id, tracking_id, message_id, height)
+        await update_state(user_id, state=state + 1)
+    else:
+        print('Set geolocation first!')
+
+
 
 async def resolve_session_state(user_id):
     pass
@@ -166,8 +181,15 @@ async def insert_pet_type_data_in_db(user_id, tracking_id, message_id, pet_type)
 
 
 async def insert_color_data_in_db(user_id, tracking_id, message_id, color):
+    query_1 = f"SELECT id FROM pet_tracking WHERE user_id='{user_id}' AND " \
+              f"tracking_id = '{tracking_id}' ORDER BY pet_tracking.id DESC LIMIT 1;"
+    async with aiosqlite.connect('../db/animal_monitor.db') as db:
+        res = await db.execute(query_1)
+        data = await res.fetchall()
+        id_ = data[0][0]
+
     query = f"UPDATE pet_tracking SET color = '{color}' " \
-            f"WHERE  user_id='{user_id}' AND " \
+            f"WHERE  user_id='{user_id}' AND id = {id_} AND " \
             f"tracking_id = '{tracking_id}';"
     async with aiosqlite.connect('../db/animal_monitor.db') as db:
         res = await db.execute(query)
@@ -175,8 +197,15 @@ async def insert_color_data_in_db(user_id, tracking_id, message_id, color):
 
 
 async def insert_sex_data_in_db(user_id, tracking_id, message_id, sex):
+    query_1 = f"SELECT id FROM pet_tracking WHERE user_id='{user_id}' AND " \
+              f"tracking_id = '{tracking_id}' ORDER BY pet_tracking.id DESC LIMIT 1;"
+    async with aiosqlite.connect('../db/animal_monitor.db') as db:
+        res = await db.execute(query_1)
+        data = await res.fetchall()
+        id_ = data[0][0]
+
     query = f"UPDATE pet_tracking SET sex = '{sex}' " \
-            f"WHERE  user_id='{user_id}' AND " \
+            f"WHERE  user_id='{user_id}' AND id = {id_} AND " \
             f"tracking_id = '{tracking_id}';"
     async with aiosqlite.connect('../db/animal_monitor.db') as db:
         res = await db.execute(query)
@@ -184,8 +213,15 @@ async def insert_sex_data_in_db(user_id, tracking_id, message_id, sex):
 
 
 async def insert_age_data_in_db(user_id, tracking_id, message_id, age):
+    query_1 = f"SELECT id FROM pet_tracking WHERE user_id='{user_id}' AND " \
+              f"tracking_id = '{tracking_id}' ORDER BY pet_tracking.id DESC LIMIT 1;"
+    async with aiosqlite.connect('../db/animal_monitor.db') as db:
+        res = await db.execute(query_1)
+        data = await res.fetchall()
+        id_ = data[0][0]
+
     query = f"UPDATE pet_tracking SET age = '{age}' " \
-            f"WHERE  user_id='{user_id}' AND " \
+            f"WHERE  user_id='{user_id}' AND id = {id_} AND " \
             f"tracking_id = '{tracking_id}';"
     async with aiosqlite.connect('../db/animal_monitor.db') as db:
         res = await db.execute(query)
@@ -193,8 +229,15 @@ async def insert_age_data_in_db(user_id, tracking_id, message_id, age):
 
 
 async def insert_wild_data_in_db(user_id, tracking_id, message_id, wild):
+    query_1 = f"SELECT id FROM pet_tracking WHERE user_id='{user_id}' AND " \
+              f"tracking_id = '{tracking_id}' ORDER BY pet_tracking.id DESC LIMIT 1;"
+    async with aiosqlite.connect('../db/animal_monitor.db') as db:
+        res = await db.execute(query_1)
+        data = await res.fetchall()
+        id_ = data[0][0]
+
     query = f"UPDATE pet_tracking SET is_wild = '{wild}' " \
-            f"WHERE  user_id='{user_id}' AND " \
+            f"WHERE  user_id='{user_id}' AND id = {id_} AND " \
             f"tracking_id = '{tracking_id}';"
     async with aiosqlite.connect('../db/animal_monitor.db') as db:
         res = await db.execute(query)
@@ -202,8 +245,15 @@ async def insert_wild_data_in_db(user_id, tracking_id, message_id, wild):
 
 
 async def insert_ill_data_in_db(user_id, tracking_id, message_id, ill):
+    query_1 = f"SELECT id FROM pet_tracking WHERE user_id='{user_id}' AND " \
+              f"tracking_id = '{tracking_id}' ORDER BY pet_tracking.id DESC LIMIT 1;"
+    async with aiosqlite.connect('../db/animal_monitor.db') as db:
+        res = await db.execute(query_1)
+        data = await res.fetchall()
+        id_ = data[0][0]
+
     query = f"UPDATE pet_tracking SET is_ill = '{ill}' " \
-            f"WHERE  user_id='{user_id}' AND " \
+            f"WHERE  user_id='{user_id}' AND id = {id_} AND " \
             f"tracking_id = '{tracking_id}';"
     async with aiosqlite.connect('../db/animal_monitor.db') as db:
         res = await db.execute(query)
@@ -211,8 +261,31 @@ async def insert_ill_data_in_db(user_id, tracking_id, message_id, ill):
 
 
 async def insert_danger_data_in_db(user_id, tracking_id, message_id, danger):
+    query_1 = f"SELECT id FROM pet_tracking WHERE user_id='{user_id}' AND " \
+              f"tracking_id = '{tracking_id}' ORDER BY pet_tracking.id DESC LIMIT 1;"
+    async with aiosqlite.connect('../db/animal_monitor.db') as db:
+        res = await db.execute(query_1)
+        data = await res.fetchall()
+        id_ = data[0][0]
+
     query = f"UPDATE pet_tracking SET in_danger = '{danger}' " \
-            f"WHERE  user_id='{user_id}' AND " \
+            f"WHERE  user_id='{user_id}' AND id = {id_} AND " \
+            f"tracking_id = '{tracking_id}';"
+    async with aiosqlite.connect('../db/animal_monitor.db') as db:
+        res = await db.execute(query)
+        await db.commit()
+
+
+async def insert_height_data_in_db(user_id, tracking_id, message_id, height):
+    query_1 = f"SELECT id FROM pet_tracking WHERE user_id='{user_id}' AND " \
+              f"tracking_id = '{tracking_id}' ORDER BY pet_tracking.id DESC LIMIT 1;"
+    async with aiosqlite.connect('../db/animal_monitor.db') as db:
+        res = await db.execute(query_1)
+        data = await res.fetchall()
+        id_ = data[0][0]
+
+    query = f"UPDATE pet_tracking SET height = '{height}' " \
+            f"WHERE  user_id='{user_id}' AND id = {id_} AND " \
             f"tracking_id = '{tracking_id}';"
     async with aiosqlite.connect('../db/animal_monitor.db') as db:
         res = await db.execute(query)

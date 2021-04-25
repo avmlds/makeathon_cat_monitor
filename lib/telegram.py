@@ -47,7 +47,8 @@ class TelegramBot:
     animal_danger = {'Да': '1', 'Нет': '0'}
     animal_danger_buttons = [{"text": i[0], "callback_data": 'danger_' + i[1]} for i in animal_danger.items()]
 
-
+    animal_height = {'высокоэтажная': '0', 'малоэтажная': '1', 'парковая': '2', 'промышленная': '3'}
+    animal_height_buttons = [{"text": i[0], "callback_data": 'height_' + i[1]} for i in animal_height.items()]
 
     def __init__(self, token):
         self.root = f'https://api.telegram.org/bot{token}/' + '{method}'
@@ -119,7 +120,7 @@ class TelegramBot:
                                 await self.send_message(chat_id=correct_message.chat.id,
                                                         text='Отправьте фотографию животного')
                             elif state == 8:
-                                await update_state(correct_message.from_.id, -1)
+                                await update_state(correct_message.from_.id, 0)
 
                         elif correct_message.location is not None and correct_message.location.live_period is None:
                             await self.send_message(chat_id=chat_id, text='Вы должны отправить отслеживание ' \
@@ -251,13 +252,23 @@ class TelegramBot:
                                        "text": "Животное в опасности?",
                                        "reply_markup": {"inline_keyboard": animal_danger_buttons_row}}
             await self.send_button(animal_danger_buttons_dict, chat_id=chat_id)
+
         elif state == 8:
+            animal_height_buttons_row = await TelegramBot.create_buttons_row(2,
+                                                                          TelegramBot.animal_height_buttons)
+            animal_height_buttons_dict = {"chat_id": "",
+                                       "text": "Высотность застройки",
+                                       "reply_markup": {"inline_keyboard": animal_height_buttons_row}}
+            await self.send_button(animal_height_buttons_dict, chat_id=chat_id)
+
+        elif state == 9:
             await self.send_message(chat_id=chat_id, text=f'Данные записаны')
+            await update_state(user_id=chat_id, state=0)
         else:
-            if state in [0, 8]:
+            if state in [0, 9]:
                 await self.send_message(chat_id=chat_id, text=f'Отправьте фотографию животного')
-            await self.send_message(chat_id=chat_id, text=f'Второй уровень проверки запросов, ' \
-                                                          f'у пользователя стейт {state}')
+            # await self.send_message(chat_id=chat_id, text=f'Второй уровень проверки запросов, ' \
+            #                                              f'у пользователя стейт {state}')
 
     async def resolve_pet_photo(self, data, current_message):
         if await get_state(current_message.from_.id) != 0:
@@ -265,10 +276,10 @@ class TelegramBot:
             await self.resolve_update(update_id=data.update_id)
             return False
         pet = await self.get_pet_params(current_message, current_message.chat.id)
-
         if pet is not None:
             await update_state(current_message.from_.id, 1)
             return True
+        return False
 
     async def check_user_in_db(self, telegram_id, chat_id):
         async with aiosqlite.connect('../db/animal_monitor.db') as db:

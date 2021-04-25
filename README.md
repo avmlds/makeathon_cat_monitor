@@ -88,7 +88,8 @@ CREATE TABLE IF NOT EXISTS pet_tracking (
     photo_path VARCHAR,
     is_wild INTEGER,
     is_ill INTEGER,
-    in_danger INTEGER);''')
+    in_danger INTEGER,
+    height INTEGER);''')
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS proceeded_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
