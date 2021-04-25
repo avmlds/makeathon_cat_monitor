@@ -12,7 +12,7 @@ import aiosqlite
 
 
 async def insert_state(user_id):
-    query = f'INSERT INTO user_state(user_id) VALUES({user_id});'
+    query = f'INSERT OR IGNORE INTO user_state(user_id) VALUES({user_id});'
     async with aiosqlite.connect('../db/animal_monitor.db') as db:
         result = await db.execute(query)
         await db.commit()
@@ -32,7 +32,7 @@ async def get_state(user_id):
         data = await result.fetchall()
         await db.commit()
         if len(data) == 1:
-            return data[0]
+            return data[0][0]
         else:
             raise Exception(f'Unknown behaviour, check user state for user_id = {user_id}')
 

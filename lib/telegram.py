@@ -63,14 +63,21 @@ class TelegramBot:
                             and correct_message.location.live_period is not None \
                             and correct_message.location.heading is not None:
                         await TelegramBot.continue_tracking_user(data=data)
-
-                if correct_message.text != '/start':
-                    await self.send_message(chat_id=chat_id, text='')
+                        await self.resolve_update(update_id=data.update_id)
+                        continue
+                if correct_message.text == '/start':
+                    await self.send_message(chat_id=chat_id, text=START_MESSAGE_TEXT + ' отправлен /start')
                 else:
-                    await self.send_message(chat_id=chat_id, text=START_MESSAGE_TEXT)
+                    state = await get_state(user_id=correct_message.from_.id)
+                    print(state)
+                    if state == 1:
+                        await self.send_message(chat_id=chat_id, text='Выберете тип животного')
+
+                    else:
+                        await self.send_message(chat_id=chat_id, text=START_MESSAGE_TEXT)
 
                 checked_user = await self.check_user_in_db(telegram_id=telegram_id, chat_id=chat_id)
-
+                print(f'checked user {checked_user}')
                 if not checked_user[0]:
                     await self.resolve_update(update_id=data.update_id)
                     continue
@@ -78,20 +85,21 @@ class TelegramBot:
                 if data.message is not None and data.message.photo is not None:
                     current_message = data.message
                     if not await self.resolve_pet_photo(data, current_message):
+                        await self.resolve_update(update_id=data.update_id)
                         continue
                 elif data.edited_message is not None and data.edited_message.photo is not None:
                     current_message = data.edited_message
                     if not await self.resolve_pet_photo(data, current_message):
+                        await self.resolve_update(update_id=data.update_id)
                         continue
                 else:
-                    print('no photo in file')
-
-
-                # file_id: str
-                # file_unique_id: str
-                # file_size: int
-                # width: int
-                # height: int
+                    state = await get_state(user_id=correct_message.from_.id)
+                    if state == 1:
+                        # second message send
+                        # TODO: Here I must to perform next steps (buttons)
+                        await self.send_message(chat_id=chat_id, text='Выберете тип животного')
+                    else:
+                        await self.send_message(chat_id=chat_id, text=START_MESSAGE_TEXT)
 
                 await self.resolve_update(update_id=data.update_id)
                 print(data)
