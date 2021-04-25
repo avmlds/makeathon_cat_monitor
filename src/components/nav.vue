@@ -12,6 +12,9 @@
             <b-navbar-item tag="router-link" :to="{ path: '/statistic'}">
                 Статистика
             </b-navbar-item>
+            <b-navbar-item tag="router-link" :to="{ path: '/users'}">
+                Пользователи
+            </b-navbar-item>
             <b-navbar-dropdown label="Доп. информация">
                 <b-navbar-item href="#">
                     About

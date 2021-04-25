@@ -13,6 +13,11 @@ const routes = [
     path: '/statistic',
     name: 'statistic',
     component: () => import('@/components/Stat.vue')
+  },
+  {
+    path: '/users',
+    name: 'users',
+    component: () => import('@/components/users.vue')
   }
 ]
 
