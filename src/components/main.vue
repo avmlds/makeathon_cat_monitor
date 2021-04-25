@@ -26,30 +26,20 @@
 
 <script>
 import { gmapApi } from "vue2-google-maps";
+import petTracking from "../../pet_tracking.json";
 
 export default {
   data() {
     return {
       options: {
-        zoom: 12,
+        zoom: 10,
         center: {
           lat: 55.748716,
           lng: 37.612828,
         },
         mapTypeId: "terrain",
       },
-      coordinates: {
-        0: {
-          full_name: "12 бездомных собак, 21 бездомная кошка",
-          lat: "55.748716",
-          lng: "37.612828",
-        },
-        1: {
-          full_name: "4 бездомные собаки, 11 бездомных кошек",
-          lat: "55.748916",
-          lng: "37.762928",
-        },
-      },
+      coordinates: petTracking.main,
       infoPosition: null,
       infoContent: null,
       infoOpened: false,
