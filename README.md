@@ -2,7 +2,7 @@
 
 ## Project preview
 ```
-![img](screenshots/map_1.png)
+![img](map_1.png)
 ```
 ```
 ![img](screenshots/map.png)
