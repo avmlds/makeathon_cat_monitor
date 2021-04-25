@@ -85,7 +85,7 @@
         <b-tab-item label="Животные">
           <section>
             <b-tabs>
-              <b-tab-item label="Table">
+              <b-tab-item label="Список">
                 <b-table
                   :data="petTracking.main"
                   :columns="petTracking.columns"
@@ -96,7 +96,7 @@
                 </b-table>
               </b-tab-item>
 
-              <b-tab-item label="Selected">
+              <b-tab-item label="Выбранные">
                 <pre>{{ selected }}</pre>
               </b-tab-item>
             </b-tabs>
