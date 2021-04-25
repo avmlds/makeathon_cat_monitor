@@ -72,7 +72,7 @@ class TelegramBot:
                 checked_user = await self.check_user_in_db(telegram_id=telegram_id, chat_id=chat_id)
 
                 if not checked_user[0]:
-                    await TelegramBot.resolve_update(update_id=data.update_id)
+                    await self.resolve_update(update_id=data.update_id)
                     continue
 
                 if data.message is not None and data.message.photo is not None:
