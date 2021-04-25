@@ -1,4 +1,6 @@
 import asyncio
+import json
+
 import aiofiles
 import aiohttp
 import aiosqlite
@@ -15,6 +17,38 @@ from lib.state_resolvers import *
 
 
 class TelegramBot:
+    pet_types = {'Кошка': '1', 'Собака': '2'}
+    pet_types_buttons = [{"text": i[0], "callback_data": 'type_' + i[1]} for i in pet_types.items()]
+
+    animal_colors = {'полосатый (шпрот)': '1',
+                     'полосатый с белым': '2',
+                     'черный': '3',
+                     'черный с белым': '4',
+                     'рыжий': '5',
+                     'рыжий с белым': '6',
+                     'серый': '7',
+                     'серый с белым': '8',
+                     'трехцветный': '9',
+                     'белый с пятнами (коровка)': '10'}
+    animal_color_buttons = [{"text": i[0], "callback_data": 'color_' + i[1]} for i in animal_colors.items()]
+
+    animal_sex = {'Мальчик': '1', 'Девочка': '2'}
+    animal_sex_buttons = [{"text": i[0], "callback_data": 'sex_' + i[1]} for i in animal_sex.items()]
+
+    animal_age = {'0-1 год': '1', '1-5 лет': '2', '5-20 лет': '3'}
+    animal_age_buttons = [{"text": i[0], "callback_data": 'age_' + i[1]} for i in animal_age.items()]
+
+    animal_wild = {'Да': '1', 'Нет': '0'}
+    animal_wild_buttons = [{"text": i[0], "callback_data": 'wild_' + i[1]} for i in animal_wild.items()]
+
+    animal_ill = {'Да': '1', 'Нет': '0'}
+    animal_ill_buttons = [{"text": i[0], "callback_data": 'ill_' + i[1]} for i in animal_ill.items()]
+
+    animal_danger = {'Да': '1', 'Нет': '0'}
+    animal_danger_buttons = [{"text": i[0], "callback_data": 'danger_' + i[1]} for i in animal_danger.items()]
+
+
+
     def __init__(self, token):
         self.root = f'https://api.telegram.org/bot{token}/' + '{method}'
         self.update_polls_command = self.root.format(method='getUpdates')
@@ -22,8 +56,22 @@ class TelegramBot:
         self.send_message_command = self.root.format(method=self.send_message_method)
         self.get_file_step_1 = self.root.format(method='getFile?file_id={file_id}')
         self.get_file_step_2 = f'https://api.telegram.org/file/bot{token}/' + '{file_path}'
+
+
         self.query = []
         self.updates = []
+
+    @staticmethod
+    async def create_buttons_row(shift, buttons_list):
+        """
+        This func generates buttons row. Takes list with dict of
+        button name and callback_query response that will be sent to server
+        when user presses on button
+        :param shift: integer
+        :param buttons_list: list of dicts
+        :return: list
+        """
+        return [buttons_list[start:start + shift] for start in range(0, len(buttons_list) - shift + 1, shift)]
 
     @staticmethod
     async def async_request(session_kwargs, request_kwargs):
@@ -45,37 +93,87 @@ class TelegramBot:
                     continue
                 await TelegramBot.track_update(update_id=data.update_id)
 
-                correct_message = data.message if data.message is not None else data.edited_message
-                telegram_id = correct_message.from_.id
-                update_id = data.update_id
-                chat_id = correct_message.chat.id
+                if data.callback_query is not None:
+                    await callback_query_resolver(data)
+                    await self.resolve_update(data.update_id)
+                    state = await get_state(user_id=data.callback_query.from_.id)
+                    await self.send_next_buttons(state, data.callback_query.from_.id)
+                    continue
 
-                # im checking this first cause average users will send location first
-                if data.message is not None:
-                    if correct_message.location is not None and correct_message.location.live_period is not None:
-                        # start_tracking
-                        await self.start_tracking_user(data=data)
-                    elif correct_message.location is not None and correct_message.location.live_period is None:
-                        await self.send_message(chat_id=chat_id, text='Вы должны отправить отслеживание ' \
-                                                                      'геопозиции, а не одиночную геопозицию')
-                else:
-                    if correct_message.location is not None \
-                            and correct_message.location.live_period is not None \
-                            and correct_message.location.heading is not None:
-                        await TelegramBot.continue_tracking_user(data=data)
-                        await self.resolve_update(update_id=data.update_id)
-                        continue
-                if correct_message.text == '/start':
-                    await self.send_message(chat_id=chat_id, text=START_MESSAGE_TEXT + ' отправлен /start')
-                else:
+                correct_message = data.message if data.message is not None else data.edited_message
+
+                if correct_message is not None:
                     state = await get_state(user_id=correct_message.from_.id)
-                    print(state)
-                    if state == 1:
-                        await self.send_message(chat_id=chat_id, text='Выберете тип животного')
+                    print(f'first/state is {state}')
+
+                    telegram_id = correct_message.from_.id
+                    update_id = data.update_id
+                    chat_id = correct_message.chat.id
+
+                    # im checking this first cause average users will send location first
+                    if data.message is not None:
+                        if correct_message.location is not None and correct_message.location.live_period is not None:
+                            # start_tracking
+                            await self.start_tracking_user(data=data)
+                            if state == 0:
+                                await self.send_message(chat_id=correct_message.chat.id,
+                                                        text='Отправьте фотографию животного')
+                            elif state == 8:
+                                await update_state(correct_message.from_.id, -1)
+
+                        elif correct_message.location is not None and correct_message.location.live_period is None:
+                            await self.send_message(chat_id=chat_id, text='Вы должны отправить отслеживание ' \
+                                                                          'геопозиции, а не одиночную геопозицию')
+                    else:
+                        if correct_message.location is not None \
+                                and correct_message.location.live_period is not None \
+                                and correct_message.location.heading is not None:
+                            await TelegramBot.continue_tracking_user(data=data)
+                            await self.resolve_update(update_id=data.update_id)
+                            continue
+                    if correct_message.text == '/start':
+                        await self.send_message(chat_id=chat_id, text=START_MESSAGE_TEXT + ' отправлен /start')
+                elif data.callback_query is not None:
+                    # значит это кнопки пошли, только у них есть коллбэк кюери
+                    correct_message = data.callback_query
+                    buttons = True
+                    telegram_id = data.callback_query.from_.id
+                    update_id = data.update_id
+
+                    # this is not correct
+                    chat_id = data.callback_query.from_.id
+                    state = await get_state(user_id=data.callback_query.from_.id)
+                    print(f'state is {state}')
+                    if state == 0:
+                        await self.send_message(chat_id=chat_id, text='Отправьте фотографию животного')
+                    elif state == 1:
+                        pet_type_buttons_row = await TelegramBot.create_buttons_row(2, TelegramBot.pet_types_buttons)
+                        pet_type_buttons_dict = {"chat_id": "",
+                                                 "text": "Выберете тип животного",
+                                                 "reply_markup": {"inline_keyboard": pet_type_buttons_row}}
+                        await self.send_button(pet_type_buttons_dict, chat_id=chat_id)
+                    elif state == 2:
+                        animal_color_buttons_row = await TelegramBot.create_buttons_row(2,
+                                                                                        TelegramBot.animal_color_buttons)
+                        animal_color_buttons_dict = {"chat_id": "",
+                                                     "text": "Выберите тип окраски",
+                                                     "reply_markup": {"inline_keyboard": animal_color_buttons_row}}
+                        await self.send_button(animal_color_buttons_dict, chat_id=chat_id)
+                    elif state == 3:
+                        animal_sex_buttons_row = await TelegramBot.create_buttons_row(2,
+                                                                                        TelegramBot.animal_sex_buttons)
+                        animal_sex_buttons_dict = {"chat_id": "",
+                                                     "text": "Выберите пол животного",
+                                                     "reply_markup": {"inline_keyboard": animal_sex_buttons_row}}
+                        await self.send_button(animal_sex_buttons_dict, chat_id=chat_id)
+
 
                     else:
                         await self.send_message(chat_id=chat_id, text=START_MESSAGE_TEXT)
-
+                else:
+                    print('ATTENTION!!!!!')
+                    print(data)
+                    continue
                 checked_user = await self.check_user_in_db(telegram_id=telegram_id, chat_id=chat_id)
                 print(f'checked user {checked_user}')
                 if not checked_user[0]:
@@ -93,23 +191,81 @@ class TelegramBot:
                         await self.resolve_update(update_id=data.update_id)
                         continue
                 else:
+                    if data.message is None and data.edited_message is None and data.callback_query is not None:
+                        correct_message = data.callback_query
                     state = await get_state(user_id=correct_message.from_.id)
-                    if state == 1:
-                        # second message send
-                        # TODO: Here I must to perform next steps (buttons)
-                        await self.send_message(chat_id=chat_id, text='Выберете тип животного')
-                    else:
-                        await self.send_message(chat_id=chat_id, text=START_MESSAGE_TEXT)
-
+                    await self.send_next_buttons(state, correct_message.from_.id)
                 await self.resolve_update(update_id=data.update_id)
                 print(data)
 
+    async def send_next_buttons(self, state, chat_id):
+        if state == 1:
+            pet_type_buttons_row = await TelegramBot.create_buttons_row(2, TelegramBot.pet_types_buttons)
+            pet_type_buttons_dict = {"chat_id": "",
+                                     "text": "Выберете тип животного",
+                                     "reply_markup": {"inline_keyboard": pet_type_buttons_row}}
+            await self.send_button(pet_type_buttons_dict, chat_id=chat_id)
+
+        elif state == 2:
+            animal_color_buttons_row = await TelegramBot.create_buttons_row(2,
+                                                                            TelegramBot.animal_color_buttons)
+            animal_color_buttons_dict = {"chat_id": "",
+                                         "text": "Выберите тип окраски",
+                                         "reply_markup": {"inline_keyboard": animal_color_buttons_row}}
+            await self.send_button(animal_color_buttons_dict, chat_id=chat_id)
+        elif state == 3:
+            animal_sex_buttons_row = await TelegramBot.create_buttons_row(2,
+                                                                          TelegramBot.animal_sex_buttons)
+            animal_sex_buttons_dict = {"chat_id": "",
+                                       "text": "Выберите пол животного",
+                                       "reply_markup": {"inline_keyboard": animal_sex_buttons_row}}
+            await self.send_button(animal_sex_buttons_dict, chat_id=chat_id)
+        elif state == 4:
+            animal_age_buttons_row = await TelegramBot.create_buttons_row(1,
+                                                                          TelegramBot.animal_age_buttons)
+            animal_age_buttons_dict = {"chat_id": "",
+                                       "text": "Выберите возраст животного",
+                                       "reply_markup": {"inline_keyboard": animal_age_buttons_row}}
+            await self.send_button(animal_age_buttons_dict, chat_id=chat_id)
+
+        elif state == 5:
+            animal_wild_buttons_row = await TelegramBot.create_buttons_row(2,
+                                                                          TelegramBot.animal_wild_buttons)
+            animal_wild_buttons_dict = {"chat_id": "",
+                                       "text": "Животное дикое?",
+                                       "reply_markup": {"inline_keyboard": animal_wild_buttons_row}}
+            await self.send_button(animal_wild_buttons_dict, chat_id=chat_id)
+
+        elif state == 6:
+            animal_ill_buttons_row = await TelegramBot.create_buttons_row(2,
+                                                                          TelegramBot.animal_ill_buttons)
+            animal_ill_buttons_dict = {"chat_id": "",
+                                       "text": "Животное выглядит больным?",
+                                       "reply_markup": {"inline_keyboard": animal_ill_buttons_row}}
+            await self.send_button(animal_ill_buttons_dict, chat_id=chat_id)
+
+        elif state == 7:
+            animal_danger_buttons_row = await TelegramBot.create_buttons_row(2,
+                                                                          TelegramBot.animal_danger_buttons)
+            animal_danger_buttons_dict = {"chat_id": "",
+                                       "text": "Животное в опасности?",
+                                       "reply_markup": {"inline_keyboard": animal_danger_buttons_row}}
+            await self.send_button(animal_danger_buttons_dict, chat_id=chat_id)
+        elif state == 8:
+            await self.send_message(chat_id=chat_id, text=f'Данные записаны')
+        else:
+            if state in [0, 8]:
+                await self.send_message(chat_id=chat_id, text=f'Отправьте фотографию животного')
+            await self.send_message(chat_id=chat_id, text=f'Второй уровень проверки запросов, ' \
+                                                          f'у пользователя стейт {state}')
+
     async def resolve_pet_photo(self, data, current_message):
-        if await get_state(current_message.from_.id) == 0:
+        if await get_state(current_message.from_.id) != 0:
             await self.send_message(current_message.chat.id, text='Закончите описание животного')
             await self.resolve_update(update_id=data.update_id)
             return False
         pet = await self.get_pet_params(current_message, current_message.chat.id)
+
         if pet is not None:
             await update_state(current_message.from_.id, 1)
             return True
@@ -128,6 +284,15 @@ class TelegramBot:
             else:
                 raise Exception('Unknown behaviour')
 
+    async def send_button(self, button_dict, chat_id):
+        button_dict['chat_id'] = chat_id
+        urls = self.root.format(method='sendMessage')
+        json_data = json.loads(json.dumps(button_dict))
+        await self.async_request(session_kwargs={},
+                                 request_kwargs={'method': 'POST',
+                                                 'url': urls,
+                                                 'json': json_data})
+
     @staticmethod
     async def make_active(telegram_id):
         async with aiosqlite.connect('../db/animal_monitor.db') as db:
@@ -138,7 +303,7 @@ class TelegramBot:
     @staticmethod
     async def start_tracking_user(data):
         update_id = data.update_id
-        user_id = data.message.from_.id
+        telegram_user_id = data.message.from_.id
         username = data.message.from_.username
         first_name = data.message.from_.first_name
         message_id = data.message.message_id
@@ -154,7 +319,7 @@ class TelegramBot:
 
         user_query = f"INSERT OR IGNORE INTO user(telegram_id, username, first_name, " \
                      f"system_timestamp, date, live_period, is_active) " \
-                     f"VALUES('{user_id}', '{username}', '{first_name}', '{system_timestamp}'," \
+                     f"VALUES('{telegram_user_id}', '{username}', '{first_name}', '{system_timestamp}'," \
                      f"'{iso_timestamp}', '{live_period}'," \
                      f" '{1}');"
         async with aiosqlite.connect('../db/animal_monitor.db') as db:
@@ -169,7 +334,7 @@ class TelegramBot:
                              f"'{iso_timestamp}', '{live_period}', '{heading}', '{horizontal_accuracy}');"
             inserted_data = await db.execute(tracking_query)
             await db.commit()
-        await insert_state(user_id)
+        await insert_state(telegram_user_id)
 
     @staticmethod
     async def continue_tracking_user(data):
@@ -242,19 +407,24 @@ class TelegramBot:
 
     @staticmethod
     async def get_user_tracking_id(user_id):
-        last_tracking_state = f'SELECT user_tracking.id, user_id, message_id, user_tracking.date, ' \
+
+        last_tracking_state = f'SELECT user_tracking.id, user.telegram_id, message_id, user_tracking.date, ' \
                               f'user_tracking.live_period FROM user_tracking ' \
                               f'LEFT JOIN user ' \
                               f'ON user_tracking.user_id = user.id ' \
-                              f'WHERE user.telegram_id = {user_id} ORDER BY user_tracking.id DESC LIMIT 1;'
+                              f'WHERE user.telegram_id = {user_id} AND '
+        last_tracking_state = last_tracking_state + "(user_tracking.heading IS NULL OR user_tracking.heading = 'None') " \
+                                                    "ORDER BY user_tracking.id DESC LIMIT 1;"
         async with aiosqlite.connect('../db/animal_monitor.db') as db:
             result = await db.execute(last_tracking_state)
             data = await result.fetchall()
             await db.commit()
+
         if len(data) == 1:
             return data[0]
         else:
             print('set geoсode')
+            return None
 
     async def get_pet_params(self, current_message, chat_id):
         tracking_id, user_id, message_id, \
@@ -305,6 +475,7 @@ class TelegramBot:
                                                                               'url': last_path})
             await f.write(content)
         return data_path
+
 
 
 if __name__ == '__main__':

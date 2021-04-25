@@ -74,10 +74,19 @@ class TelegramEditedMessage(BaseModel):
     entities: Optional[List[TelegramMessageEntities]] = None
 
 
+class TelegramCallbackQuery(BaseModel):
+    id: int
+    from_: TelegramMessageFrom = Field(alias='from')
+    message: Optional[TelegramMessage] = None
+    chat_instance: str
+    data: str
+
+
 class TelegramMessageResult(BaseModel):
     update_id: int
     message: Optional[TelegramMessage] = None
     edited_message: Optional[TelegramEditedMessage] = None
+    callback_query: Optional[TelegramCallbackQuery] = None
 
 
 class TelegramUpdateResponse(BaseModel):

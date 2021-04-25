@@ -82,13 +82,13 @@ CREATE TABLE IF NOT EXISTS pet_tracking (
     message_id INTEGER REFERENCES user_tracking(message_id) ON UPDATE CASCADE,
     system_timestamp TEXT NOT NULL,
     pet_type VARCHAR NOT NULL,
-    sex VARCHAR NOT NULL,
-    color VARCHAR NOT NULL,
-    age INTEGER NOT NULL,
-    photo_path VARCHAR NOT NULL,
-    is_wild INTEGER NOT NULL,
-    is_ill INTEGER NOT NULL,
-    in_danger INTEGER NOT NULL);''')
+    sex VARCHAR,
+    color VARCHAR,
+    age INTEGER,
+    photo_path VARCHAR,
+    is_wild INTEGER,
+    is_ill INTEGER,
+    in_danger INTEGER);''')
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS proceeded_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
