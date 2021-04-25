@@ -60,8 +60,11 @@ export default {
   },
   methods: {
     deactivateUser() {
-      console.log(this.checkedRows);
+      for (let i in this.checkedRows) {
+        let filteredList = this.users.filter((item) => item.user_name !== this.checkedRows[i].user_name);
+        this.users = filteredList;
+        }
+      }
     }
   }
-};
 </script>
