@@ -89,9 +89,25 @@
                 <b-table
                   :data="petTracking.main"
                   :columns="petTracking.columns"
+                  :paginated="isPaginated"
                   :selected.sync="selected"
                   focusable
                   @click="selected = null"
+                  :per-page="perPage"
+                  :searchable="searchable"
+                  :bordered="isBordered"
+                  :current-page.sync="currentPage"
+                  :pagination-simple="isPaginationSimple"
+                  :pagination-position="paginationPosition"
+                  :default-sort-direction="defaultSortDirection"
+                  :pagination-rounded="isPaginationRounded"
+                  :sort-icon="sortIcon"
+                  :sort-icon-size="sortIconSize"
+                  default-sort="id"
+                  aria-next-label="Next page"
+                  aria-previous-label="Previous page"
+                  aria-page-label="Page"
+                  aria-current-label="Current page"
                 >
                 </b-table>
               </b-tab-item>
@@ -369,7 +385,7 @@ export default {
       sortIcon: "arrow-up",
       sortIconSize: "is-small",
       currentPage: 1,
-      perPage: 5,
+      perPage: 8,
       columns: [
         {
           field: "first_name",
