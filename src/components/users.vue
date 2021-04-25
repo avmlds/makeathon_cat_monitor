@@ -12,9 +12,6 @@
             checkable
             :checkbox-position="checkboxPosition"
           >
-            <template #bottom-left>
-              <b>Выбрано пользователей</b>: {{ checkedRows.length }}
-            </template>
           </b-table>
           <b-field grouped group-multiline>
             <b-button
