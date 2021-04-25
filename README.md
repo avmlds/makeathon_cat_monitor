@@ -1,8 +1,7 @@
 # zoomonitoring
 
 ## Project preview
-```
-![img](map_1.png)
+![img](screenshots/map_1.png)
 ```
 ```
 ![img](screenshots/map.png)
