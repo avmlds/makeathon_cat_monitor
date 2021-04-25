@@ -29,10 +29,10 @@
             <b-navbar-item tag="div">
                 <div class="buttons">
                     <a class="button is-primary">
-                        <strong>Sign up</strong>
+                        <strong>Зарегистрироваться</strong>
                     </a>
                     <a class="button is-light">
-                        Log in
+                        Войти
                     </a>
                 </div>
             </b-navbar-item>
